@@ -32,13 +32,12 @@ class BERT_ONNXRuntime_SUT():
         self.options = onnxruntime.SessionOptions()
         self.options.enable_profiling = args.profile
 
-        print("Loading ONNX model...")
-        self.quantized = args.quantized
-        if self.quantized:
-            model_path = "build/data/bert_tf_v1_1_large_fp32_384_v2/bert_large_v1_1_fake_quant.onnx"
-        else:
-            model_path = "build/data/bert_tf_v1_1_large_fp32_384_v2/model.onnx"
+        model_path = "build/data/bert_tf_v1_1_large_fp32_384_v2/" + args.onnx_filename
+        self.input_mask_name = "attention_mask" if (args.onnx_filename == "bert_large_v1_1_fake_quant.onnx") else "input_mask"
+        self.segment_ids_name = "token_type_ids" if (args.onnx_filename == "bert_large_v1_1_fake_quant.onnx") else "segment_ids"
         self.sess = onnxruntime.InferenceSession(model_path, self.options)
+
+        print(f"Loading ONNX model {model_path}...")
 
         print("Constructing SUT...")
         self.sut = lg.ConstructSUT(self.issue_queries, self.flush_queries, self.process_latencies)
@@ -49,18 +48,14 @@ class BERT_ONNXRuntime_SUT():
     def issue_queries(self, query_samples):
         for i in range(len(query_samples)):
             eval_features = self.qsl.get_features(query_samples[i].index)
-            if self.quantized:
-                fd = {
-                    "input_ids": np.array(eval_features.input_ids).astype(np.int64)[np.newaxis, :],
-                    "attention_mask": np.array(eval_features.input_mask).astype(np.int64)[np.newaxis, :],
-                    "token_type_ids": np.array(eval_features.segment_ids).astype(np.int64)[np.newaxis, :]
-                }
-            else:
-                fd = {
-                    "input_ids": np.array(eval_features.input_ids).astype(np.int64)[np.newaxis, :],
-                    "input_mask": np.array(eval_features.input_mask).astype(np.int64)[np.newaxis, :],
-                    "segment_ids": np.array(eval_features.segment_ids).astype(np.int64)[np.newaxis, :]
-                }
+
+            actual_seq_length = sum(eval_features.input_mask)
+            fd = {
+                "input_ids": np.array(eval_features.input_ids).astype(np.int64)[np.newaxis, :actual_seq_length],
+                self.input_mask_name: np.array(eval_features.input_mask).astype(np.int64)[np.newaxis, :actual_seq_length],
+                self.segment_ids_name: np.array(eval_features.segment_ids).astype(np.int64)[np.newaxis, :actual_seq_length]
+            }
+           
             scores = self.sess.run([o.name for o in self.sess.get_outputs()], fd)
             output = np.stack(scores, axis=-1)[0]
 

@@ -28,7 +28,7 @@ def create_dynamic_model(onnx_dir):
     bert_model = BertOnnxModel(model, 16, 1024)
     set_dynamic_axes(
         bert_model.model, dynamic_batch_dim='batch_size', dynamic_seq_len='max_seq_len')
-    bert_model.save_model_to_file("model_dynamic.onnx")
+    bert_model.save_model_to_file(onnx_dir + "model_dynamic.onnx")
 
 
 def create_quantized_model(onnx_dir, use_raw_mask=True):

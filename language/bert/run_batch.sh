@@ -50,7 +50,7 @@ OUT_DIR=results/fast_${QTYPE}/singlestream_accuracy
 if [ -d "${OUT_DIR}" ]; then
     echo "Skip single stream tests since directory exists ${OUT_DIR}"
 else
-    mkdir -p ${OUT_DIR}/singlestream_accuracy
+    mkdir -p ${OUT_DIR}
     python run.py --scenario SingleStream --onnx_filename $ONNX --backend onnxruntime --accuracy >${OUT_DIR}/stdout.txt
     mv build/logs/* ${OUT_DIR}/
 fi

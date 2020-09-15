@@ -27,20 +27,22 @@ import onnxruntime
 from transformers import BertConfig, BertForQuestionAnswering
 from squad_QSL import get_squad_QSL
 
+
 class BERT_ONNXRuntime_SUT():
     def __init__(self, args):
         self.profile = args.profile
         options = onnxruntime.SessionOptions()
         options.enable_profiling = args.profile
-        options.intra_op_num_threads = psutil.cpu_count(logical=False)
         #options.inter_op_num_threads = 2
 
         if 'CUDAExecutionProvider' in onnxruntime.get_available_providers():
-            providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+            options.intra_op_num_threads = psutil.cpu_count(logical=False)
         else:
-            providers=['CPUExecutionProvider']
+            providers = ['CPUExecutionProvider']
 
         model_path = "build/data/bert_tf_v1_1_large_fp32_384_v2/" + args.onnx_filename
+        print(f"Loading ONNX model {model_path}...")
         self.sess = onnxruntime.InferenceSession(model_path, options, providers=providers)
 
         self.input_dtype = np.int32 if self.sess.get_inputs()[0].type == 'tensor(int32)' else np.int64
@@ -59,14 +61,13 @@ class BERT_ONNXRuntime_SUT():
         assert self.batch_size >= 1
         print(f"batch size:", self.batch_size)
 
-        print(f"Loading ONNX model {model_path}...")
+        self.processed_samples = 0
 
         print("Constructing SUT...")
         self.sut = lg.ConstructSUT(self.issue_queries, self.flush_queries, self.process_latencies)
         print("Finished constructing SUT.")
 
         self.qsl = get_squad_QSL()
-        self.processed_samples = 0
 
     def report(self, sample_id, output):
         response_array = array.array("B", output.tobytes())
@@ -76,29 +77,33 @@ class BERT_ONNXRuntime_SUT():
 
     def process_sample(self, eval_features, actual_seq_length, sample_id):
         input = {
-                "input_ids": np.array(eval_features.input_ids).astype(self.input_dtype)[np.newaxis, :actual_seq_length],
-                self.input_mask_name: np.array(eval_features.input_mask).astype(self.input_dtype)[np.newaxis, :actual_seq_length],
-                self.segment_ids_name: np.array(eval_features.segment_ids).astype(self.input_dtype)[np.newaxis, :actual_seq_length]
-             }
+            "input_ids":
+            np.array(eval_features.input_ids).astype(self.input_dtype)[np.newaxis, :actual_seq_length],
+            self.input_mask_name:
+            np.array(eval_features.input_mask).astype(self.input_dtype)[np.newaxis, :actual_seq_length],
+            self.segment_ids_name:
+            np.array(eval_features.segment_ids).astype(self.input_dtype)[np.newaxis, :actual_seq_length]
+        }
 
         scores = self.sess.run(self.output_names, input)
-        if self.output_count == 2:       
+        if self.output_count == 2:
             output = np.stack(scores, axis=-1)[0]
         else:
             output = scores[0]
 
         self.report(sample_id, output)
 
-        self.processed_samples += 1
-        if self.processed_samples % 100 == 0:
-            print(self.processed_samples)
+        #self.processed_samples += 1
+        #if self.processed_samples % 100 == 0:
+        #    print(self.processed_samples)
 
     def issue_queries(self, query_samples):
         samples = len(query_samples)
-        if samples == 1 or self.batch_size <= 1:
-            eval_features = self.qsl.get_features(query_samples[0].index)
-            actual_seq_length = sum(eval_features.input_mask)
-            self.process_sample(eval_features, actual_seq_length, query_samples[0].id)
+        if samples == 1 or self.batch_size == 1:
+            for i in range(samples):
+                eval_features = self.qsl.get_features(query_samples[i].index)
+                actual_seq_length = sum(eval_features.input_mask)
+                self.process_sample(eval_features, actual_seq_length, query_samples[i].id)
         else:
             actual_lengths = []
             for i in range(samples):
@@ -110,7 +115,7 @@ class BERT_ONNXRuntime_SUT():
 
             total_batches = int((samples + self.batch_size - 1) / self.batch_size)
             for j in range(total_batches):
-                indices = sort_index[self.batch_size * j : self.batch_size * (j+1)]
+                indices = sort_index[self.batch_size * j:self.batch_size * (j + 1)]
                 samples = [self.qsl.get_features(query_samples[i].index) for i in indices]
                 sample_ids = [query_samples[i].id for i in indices]
                 take_lengths = np.take(lengths, indices)
@@ -126,11 +131,7 @@ class BERT_ONNXRuntime_SUT():
                     input_mask[k, :length] = sample.input_mask[:length]
                     segment_ids[k, :length] = sample.segment_ids[:length]
 
-                input = {
-                    "input_ids": input_ids,
-                    self.input_mask_name: input_mask,
-                    self.segment_ids_name: segment_ids
-                }
+                input = {"input_ids": input_ids, self.input_mask_name: input_mask, self.segment_ids_name: segment_ids}
 
                 scores = self.sess.run(self.output_names, input)
 
@@ -143,9 +144,9 @@ class BERT_ONNXRuntime_SUT():
                     output = stack_scores[k]
                     self.report(sample_ids[k], output)
 
-                    self.processed_samples += 1
-                    if self.processed_samples % 100 == 0:
-                        print(self.processed_samples)
+                    #self.processed_samples += 1
+                    #if self.processed_samples % 1000 == 0:
+                    #    print(self.processed_samples)
 
     def flush_queries(self):
         pass
@@ -157,6 +158,7 @@ class BERT_ONNXRuntime_SUT():
         if self.profile:
             print("ONNX runtime profile dumped to: '{}'".format(self.sess.end_profiling()))
         print("Finished destroying SUT.")
+
 
 def get_onnxruntime_sut(args):
     return BERT_ONNXRuntime_SUT(args)

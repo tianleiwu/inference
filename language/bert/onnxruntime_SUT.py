@@ -48,18 +48,14 @@ class BERT_ONNXRuntime_SUT():
         self.input_dtype = np.int32 if self.sess.get_inputs()[0].type == 'tensor(int32)' else np.int64
 
         self.input_mask_name = self.sess.get_inputs()[1].name
-        print("input_mask name:", self.input_mask_name)
         assert self.input_mask_name in ["attention_mask", "input_mask"]
 
         self.segment_ids_name = self.sess.get_inputs()[2].name
-        print("segment_ids name:", self.segment_ids_name)
         assert self.segment_ids_name in ["token_type_ids", "segment_ids"]
 
-        self.output_count = len(self.sess.get_outputs())
         self.output_names = [o.name for o in self.sess.get_outputs()]
         self.batch_size = args.batch_size
         assert self.batch_size >= 1
-        print(f"batch size:", self.batch_size)
 
         self.processed_samples = 0
 
@@ -86,34 +82,27 @@ class BERT_ONNXRuntime_SUT():
         }
 
         scores = self.sess.run(self.output_names, input)
-        if self.output_count == 2:
-            output = np.stack(scores, axis=-1)[0]
-        else:
-            output = scores[0]
+        output = np.stack(scores, axis=-1)[0]
 
         self.report(sample_id, output)
 
-        #self.processed_samples += 1
-        #if self.processed_samples % 100 == 0:
-        #    print(self.processed_samples)
-
     def issue_queries(self, query_samples):
-        samples = len(query_samples)
-        if samples == 1 or self.batch_size == 1:
-            for i in range(samples):
+        num_samples = len(query_samples)
+        if num_samples == 1 or self.batch_size == 1:
+            for i in range(num_samples):
                 eval_features = self.qsl.get_features(query_samples[i].index)
                 actual_seq_length = sum(eval_features.input_mask)
                 self.process_sample(eval_features, actual_seq_length, query_samples[i].id)
         else:
             actual_lengths = []
-            for i in range(samples):
+            for i in range(num_samples):
                 eval_features = self.qsl.get_features(query_samples[i].index)
                 actual_seq_length = sum(eval_features.input_mask)
                 actual_lengths.append(actual_seq_length)
             lengths = np.array(actual_lengths)
             sort_index = np.argsort(lengths)
 
-            total_batches = int((samples + self.batch_size - 1) / self.batch_size)
+            total_batches = int((num_samples + self.batch_size - 1) / self.batch_size)
             for j in range(total_batches):
                 indices = sort_index[self.batch_size * j:self.batch_size * (j + 1)]
                 samples = [self.qsl.get_features(query_samples[i].index) for i in indices]
@@ -126,7 +115,6 @@ class BERT_ONNXRuntime_SUT():
                 segment_ids = np.zeros((len(samples), max_lengths), dtype=self.input_dtype)
                 for k, sample in enumerate(samples):
                     length = take_lengths[k]
-                    #print("sample.input_ids", sample.input_ids[:length])
                     input_ids[k, :length] = sample.input_ids[:length]
                     input_mask[k, :length] = sample.input_mask[:length]
                     segment_ids[k, :length] = sample.segment_ids[:length]
@@ -134,19 +122,11 @@ class BERT_ONNXRuntime_SUT():
                 input = {"input_ids": input_ids, self.input_mask_name: input_mask, self.segment_ids_name: segment_ids}
 
                 scores = self.sess.run(self.output_names, input)
-
-                if self.output_count == 2:
-                    stack_scores = np.stack(scores, axis=-1)
-                else:
-                    stack_scores = scores
+                stack_scores = np.stack(scores, axis=-1)
 
                 for k in range(len(samples)):
                     output = stack_scores[k]
                     self.report(sample_ids[k], output)
-
-                    #self.processed_samples += 1
-                    #if self.processed_samples % 1000 == 0:
-                    #    print(self.processed_samples)
 
     def flush_queries(self):
         pass

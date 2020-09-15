@@ -30,6 +30,7 @@ def get_args():
     parser.add_argument("--scenario", choices=["SingleStream", "Offline", "Server", "MultiStream"], default="Offline", help="Scenario")
     parser.add_argument("--accuracy", action="store_true", help="enable accuracy pass")
     parser.add_argument("--onnx_filename", type=str, default='model.onnx', help="onnx model filename")
+    parser.add_argument("--batch_size", type=int, default=1, help="batch size")
     parser.add_argument("--profile", action="store_true", help="enable profiling (only valid for onnxruntime backend)")
     parser.add_argument("--mlperf_conf", default="build/mlperf.conf", help="mlperf rules config")
     parser.add_argument("--user_conf", default="user.conf", help="user config for user LoadGen settings such as target QPS")

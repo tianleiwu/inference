@@ -1,14 +1,15 @@
 # Run MLPerf on Azure VM (prefer E*s_v4 with VNNI)
-# Usage: sh run_e32.sh [batch_size] [run_id]
+# Usage: sh run_e32.sh [offline_batch_size] [run_id]
 export OMP_NUM_THREADS=7
 export OMP_WAIT_POLICY=ACTIVE
 
 QTYPE=int8
-BATCH=$1
+TEST_BOX=E16
 
 cp user_int8.conf user.conf
 
-echo "BatchSize=${BATCH}"
+# ---------------------------
+BATCH=$1
 
 ONNX=fast_${QTYPE}.onnx
 
@@ -23,8 +24,14 @@ if [ -f "./audit.config" ]; then
     rm ./audit.config
 fi
 
-for SCENARIO in "Offline" "SingleStream"
+for SCENARIO in Offline SingleStream
 do
+    if [ "${SCENARIO}" = "SingleStream" ]; then
+        BATCH=1
+    fi
+
+    echo "SCENARIO=${SCENARIO} BatchSize=${BATCH}"
+
     OUT_DIR=results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/accuracy
     if [ -d "${OUT_DIR}" ]; then
         echo "Skip ${SCENARIO} tests since directory exists ${OUT_DIR}"
@@ -32,6 +39,7 @@ do
         echo "${SCENARIO} accuracy test ..."
         mkdir -p ${OUT_DIR}
         python3 run.py --scenario ${SCENARIO} --onnx_filename $ONNX --batch_size ${BATCH} --backend onnxruntime --accuracy >${OUT_DIR}/stdout.txt
+
         mv build/logs/* ${OUT_DIR}/
     fi
 
@@ -44,17 +52,20 @@ do
         mv build/logs/* ${OUT_DIR}/
     fi
 
-    cp ~/inference/compliance/nvidia/TEST01/bert/audit.config ./audit.config
+    for TEST_NAME in "TEST01" "TEST04A" "TEST04B" "TEST05"
+    do
+        cp ~/inference/compliance/nvidia/${TEST_NAME}/bert/audit.config ./audit.config
 
-    python3 run.py --backend=onnxruntime --scenario=${SCENARIO} --batch_size ${BATCH} --onnx_filename $ONNX
+        python3 run.py --backend=onnxruntime --scenario=${SCENARIO} --batch_size ${BATCH} --onnx_filename $ONNX
 
-    python3 ~/inference/compliance/nvidia/TEST01/run_verification.py --results_dir results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ --compliance_dir build/logs/ --output_dir build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/
-    
+        python3 ~/inference/compliance/nvidia/${TEST_NAME}/run_verification.py --results_dir results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ --compliance_dir build/logs/ --output_dir build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/
+
+        mkdir -p results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/
+        mv results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/
+
+        mkdir -p results_b$1_$2/compliance/${TEST_BOX}/bert-99/${SCENARIO}/
+        mv build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ results_b$1_$2/compliance/${TEST_BOX}/bert-99/${SCENARIO}/
+    done
 done
 
 rm ./audit.config
-
-mkdir -p results_b${BATCH}_$2/results/E16/bert-99/
-mkdir -p results_b${BATCH}_$2/compliance/E16/bert-99/
-mv results/fast_${QTYPE}_batch_${BATCH}/ results_b${BATCH}_$2/results/E16/bert-99/
-mv build/compliance_output/fast_${QTYPE}_batch_${BATCH}/ results_b${BATCH}_$2/compliance/E16/bert-99/

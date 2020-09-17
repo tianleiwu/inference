@@ -1,24 +1,39 @@
-# Run MLPerf on Azure VM (prefer E*s_v4 with VNNI)
-# Usage: sh run_e32.sh [offline_batch_size] [run_id]
-export OMP_NUM_THREADS=7
-export OMP_WAIT_POLICY=ACTIVE
-
-QTYPE=int8
-TEST_BOX=E16
-
-cp user_int8.conf user.conf
-
-# ---------------------------
+# Run MLPerf on Azure VM (prefer E*s_v4 with VNNI for int8, or T4 for fp16)
+# Usage: sh run.sh [offline_batch_size] [run_id] [t4|e32|e16]
 if [ -z "$1" ]; then
-  echo "Usage: sh run_t4.sh offline_batch_size run_id"
+  echo "Usage: sh run_t4.sh offline_batch_size run_id [t4|e32|e16]"
   exit 1
 fi
 
 if [ -z "$2" ]; then
-  echo "Usage: sh run_t4.sh offline_batch_size run_id"
+  echo "Usage: sh run_t4.sh offline_batch_size run_id [t4|e32|e16]"
   exit 1
 fi
 
+if [ "$3" = "e32" ]; then
+    export OMP_NUM_THREADS=14
+    export OMP_WAIT_POLICY=ACTIVE
+    QTYPE=int8
+    TEST_BOX=E32
+    cp user_int8.conf user.conf
+elif [ "$3" = "e16" ]; then
+    export OMP_NUM_THREADS=7
+    export OMP_WAIT_POLICY=ACTIVE
+    QTYPE=int8
+    TEST_BOX=E16
+    cp user_int8.conf user.conf
+elif [ "$3" = "t4" ]; then
+    export OMP_NUM_THREADS=7
+    export OMP_WAIT_POLICY=ACTIVE
+    QTYPE=int8
+    TEST_BOX=E16
+    cp user_int8.conf user.conf
+else
+    echo "Usage: sh run_t4.sh offline_batch_size run_id [t4|e32|e16]"
+    exit 1
+fi
+
+# ---------------------------
 BATCH=$1
 
 ONNX=fast_${QTYPE}.onnx
@@ -62,20 +77,20 @@ do
         mv build/logs/* ${OUT_DIR}/
     fi
 
-    for TEST_NAME in "TEST01" "TEST04A" "TEST04B" "TEST05"
+    for TEST_NAME in TEST01 TEST05
     do
         cp ~/inference/compliance/nvidia/${TEST_NAME}/bert/audit.config ./audit.config
 
         python3 run.py --backend=onnxruntime --scenario=${SCENARIO} --batch_size ${BATCH} --onnx_filename $ONNX
 
         python3 ~/inference/compliance/nvidia/${TEST_NAME}/run_verification.py --results_dir results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ --compliance_dir build/logs/ --output_dir build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/
-
-        mkdir -p results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/
-        mv results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/
-
-        mkdir -p results_b$1_$2/compliance/${TEST_BOX}/bert-99/${SCENARIO}/
-        mv build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ results_b$1_$2/compliance/${TEST_BOX}/bert-99/${SCENARIO}/
     done
+
+    mkdir -p results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/
+    mv results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/* results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/
+
+    mkdir -p results_b$1_$2/compliance/${TEST_BOX}/bert-99/${SCENARIO}/
+    mv build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/* results_b$1_$2/compliance/${TEST_BOX}/bert-99/${SCENARIO}/
 done
 
 rm ./audit.config

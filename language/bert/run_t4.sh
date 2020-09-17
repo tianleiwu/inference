@@ -51,5 +51,7 @@ done
 
 rm ./audit.config
 
-mv results/fast_${QTYPE}_batch_${BATCH}/ results_b${BATCH}_$2/results/T4/bert/
-mv build/compliance_output/fast_${QTYPE}_batch_${BATCH}/ results_b${BATCH}_$2/compliance/T4/bert/
+mkdir -p results_b${BATCH}_$2/results/T4/bert-99/
+mkdir -p results_b${BATCH}_$2/compliance/T4/bert-99/
+mv results/fast_${QTYPE}_batch_${BATCH}/ results_b${BATCH}_$2/results/T4/bert-99/
+mv build/compliance_output/fast_${QTYPE}_batch_${BATCH}/ results_b${BATCH}_$2/compliance/T4/bert-99/

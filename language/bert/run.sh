@@ -23,11 +23,9 @@ elif [ "$3" = "e16" ]; then
     TEST_BOX=E16
     cp user_int8.conf user.conf
 elif [ "$3" = "t4" ]; then
-    export OMP_NUM_THREADS=7
-    export OMP_WAIT_POLICY=ACTIVE
-    QTYPE=int8
-    TEST_BOX=E16
-    cp user_int8.conf user.conf
+    QTYPE=fp16
+    TEST_BOX=T4
+    cp user_fp16.conf user.conf
 else
     echo "Usage: sh run_t4.sh offline_batch_size run_id [t4|e32|e16]"
     exit 1

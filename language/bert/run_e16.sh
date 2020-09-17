@@ -9,6 +9,16 @@ TEST_BOX=E16
 cp user_int8.conf user.conf
 
 # ---------------------------
+if [ -z "$1" ]; then
+  echo "Usage: sh run_t4.sh offline_batch_size run_id"
+  exit 1
+fi
+
+if [ -z "$2" ]; then
+  echo "Usage: sh run_t4.sh offline_batch_size run_id"
+  exit 1
+fi
+
 BATCH=$1
 
 ONNX=fast_${QTYPE}.onnx

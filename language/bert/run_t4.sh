@@ -1,12 +1,22 @@
 # Run MLPerf on T4 GPU
 # Usage: sh run_t4.sh [offline_batch_size] [run_id]
 
-QTYPE=int8
+QTYPE=fp16
 TEST_BOX=T4
 
 cp user_fp16.conf user.conf
 
 # ---------------------------
+if [ -z "$1" ]; then
+  echo "Usage: sh run_t4.sh offline_batch_size run_id"
+  exit 1
+fi
+
+if [ -z "$2" ]; then
+  echo "Usage: sh run_t4.sh offline_batch_size run_id"
+  exit 1
+fi
+
 BATCH=$1
 
 ONNX=fast_${QTYPE}.onnx

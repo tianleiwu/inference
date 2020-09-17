@@ -75,14 +75,15 @@ do
         mv build/logs/* ${OUT_DIR}/
     fi
 
-    for TEST_NAME in TEST01 TEST05
-    do
-        cp ~/inference/compliance/nvidia/${TEST_NAME}/bert/audit.config ./audit.config
+    TEST_NAME="TEST01"
+    cp ~/inference/compliance/nvidia/${TEST_NAME}/bert/audit.config ./audit.config
+    python3 run.py --backend=onnxruntime --scenario=${SCENARIO} --batch_size ${BATCH} --onnx_filename $ONNX
+    python3 ~/inference/compliance/nvidia/${TEST_NAME}/run_verification.py --results_dir results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ --compliance_dir build/logs/ --output_dir build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/
 
-        python3 run.py --backend=onnxruntime --scenario=${SCENARIO} --batch_size ${BATCH} --onnx_filename $ONNX
-
-        python3 ~/inference/compliance/nvidia/${TEST_NAME}/run_verification.py --results_dir results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ --compliance_dir build/logs/ --output_dir build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/
-    done
+    TEST_NAME="TEST05"
+    cp ~/inference/compliance/nvidia/${TEST_NAME}/audit.config ./audit.config
+    python3 run.py --backend=onnxruntime --scenario=${SCENARIO} --batch_size ${BATCH} --onnx_filename $ONNX
+    python3 ~/inference/compliance/nvidia/${TEST_NAME}/run_verification.py --results_dir results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/ --compliance_dir build/logs/ --output_dir build/compliance_output/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/
 
     mkdir -p results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/
     mv results/fast_${QTYPE}_batch_${BATCH}/${SCENARIO}/* results_b$1_$2/results/${TEST_BOX}/bert-99/${SCENARIO}/

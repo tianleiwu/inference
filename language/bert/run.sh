@@ -95,6 +95,9 @@ do
     python3 run.py --backend=onnxruntime --scenario=${SCENARIO} --batch_size ${BATCH} --onnx_filename $ONNX
     python3 ../../compliance/nvidia/${TEST_NAME}/run_verification.py --results_dir ${RESULT_DIR}/ --compliance_dir build/logs/ --output_dir ${AUDIT_DIR}/
 
+    # Must remove the audit.config before next test
+    rm ./audit.config
+
     SAVE_DIR=results_b$1_t${NUM_THREADS}_r$2
     mkdir -p ${SAVE_DIR}/results/${TEST_BOX}/bert-99/${SCENARIO}/
     mv ${RESULT_DIR}/* ${SAVE_DIR}/results/${TEST_BOX}/bert-99/${SCENARIO}/
@@ -113,7 +116,5 @@ do
     grep 'TEST' ${SAVE_DIR}/compliance/${TEST_BOX}/bert-99/${SCENARIO}/TEST01/verify_performance.txt | sed 's/^/TEST01 performance /'
     grep 'TEST' ${SAVE_DIR}/compliance/${TEST_BOX}/bert-99/${SCENARIO}/TEST05/verify_performance.txt | sed 's/^/TEST05 performance /'
 done
-
-rm ./audit.config
 
 echo "Done. Results of batch size $1 of run $2 is saved to ${SAVE_DIR}"

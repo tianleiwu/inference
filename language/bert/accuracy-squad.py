@@ -205,7 +205,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
         null_start_logit = 0  # the start logit at the slice with min null score
         null_end_logit = 0  # the end logit at the slice with min null score
         for (feature_index, feature) in enumerate(features):
-            # FIX: During compliance/audit runs, we only generate a small subset of
+             # FIX: During compliance/audit runs, we only generate a small subset of
             # all entries from the dataset. As a result, sometimes dict retrieval
             # fails because a key is missing.
             # result = unique_id_to_result[feature.unique_id]
@@ -399,7 +399,8 @@ def main():
     write_predictions(eval_examples, eval_features, results, 20, 30, True, args.out_file)
 
     print("Evaluating predictions...")
-    cmd = "python3 {:}/evaluate-v1.1.py {:} {:}".format(os.path.dirname(__file__),
+    cmd = "python3 {:} {:} {:}".format(
+        os.path.join(os.path.dirname(__file__), 'evaluate-v1.1.py'),
         args.val_data, args.out_file)
     subprocess.check_call(cmd, shell=True)
 

@@ -29,7 +29,8 @@ def get_args():
     parser.add_argument("--backend", choices=["tf","pytorch","onnxruntime","tf_estimator"], default="tf", help="Backend")
     parser.add_argument("--scenario", choices=["SingleStream", "Offline", "Server", "MultiStream"], default="Offline", help="Scenario")
     parser.add_argument("--accuracy", action="store_true", help="enable accuracy pass")
-    parser.add_argument("--quantized", action="store_true", help="use quantized model (only valid for onnxruntime backend)")
+    parser.add_argument("--onnx_filename", type=str, default='model.onnx', help="onnx model filename")
+    parser.add_argument("--batch_size", type=int, default=1, help="batch size")
     parser.add_argument("--profile", action="store_true", help="enable profiling (only valid for onnxruntime backend)")
     parser.add_argument("--mlperf_conf", default="build/mlperf.conf", help="mlperf rules config")
     parser.add_argument("--user_conf", default="user.conf", help="user config for user LoadGen settings such as target QPS")
@@ -84,8 +85,10 @@ def main():
     log_output_settings.outdir = log_path
     log_output_settings.copy_summary_to_stdout = True
     log_settings = lg.LogSettings()
+    if not args.accuracy:
+        log_settings.enable_trace = False
     log_settings.log_output = log_output_settings
-
+    
     print("Running LoadGen test...")
     lg.StartTestWithLogSettings(sut.sut, sut.qsl.qsl, settings, log_settings)
 

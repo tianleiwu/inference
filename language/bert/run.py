@@ -85,8 +85,10 @@ def main():
     log_output_settings.outdir = log_path
     log_output_settings.copy_summary_to_stdout = True
     log_settings = lg.LogSettings()
+    if not args.accuracy:
+        log_settings.enable_trace = False
     log_settings.log_output = log_output_settings
-
+    
     print("Running LoadGen test...")
     lg.StartTestWithLogSettings(sut.sut, sut.qsl.qsl, settings, log_settings)
 
